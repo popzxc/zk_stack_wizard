@@ -38,6 +38,8 @@ fn main_fallible() -> anyhow::Result<()> {
 }
 
 fn main() {
+    human_panic::setup_panic!();
+
     if let Err(err) = main_fallible() {
         println!("A following error occured:");
         println!("{err:#}");
