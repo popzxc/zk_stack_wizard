@@ -24,6 +24,11 @@ enum Commands {
         /// Name of the hyperchain.
         name: String,
     },
+    /// Prints the location for a certain hyperchain data.
+    Where {
+        /// Name of the hyperchain.
+        name: String,
+    },
 }
 
 fn main_fallible() -> anyhow::Result<()> {
@@ -31,6 +36,15 @@ fn main_fallible() -> anyhow::Result<()> {
 
     let shell = Shell::new()?;
     prerequisites::check_prerequisites(&shell);
+
+    match args.command {
+        Commands::Init { name } => {
+            let _context = init_context::init_context(&shell, name)?;
+        }
+        Commands::Where { name } => {
+            init_context::find_hyperchain(&shell, name)?;
+        }
+    }
 
     // let runner = Runner::new(shell);
     // runner.run()?;
