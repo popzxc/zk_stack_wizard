@@ -1,11 +1,10 @@
 #![allow(dead_code)]
 
-use std::{f32::consts::E, path::PathBuf, time::SystemTime};
+use std::time::SystemTime;
 
-use anyhow::Context;
 use clap::{Parser, Subcommand, ValueEnum};
 use derive_more::Display;
-use directories::ProjectDirs;
+use init::Init;
 use prerequisites::check_prerequisites;
 use serde::{Deserialize, Serialize};
 use xshell::{cmd, Shell};
@@ -50,7 +49,8 @@ enum Commands {
     },
 }
 
-fn main() -> anyhow::Result<()> {
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
     human_panic::setup_panic!();
 
     let opts = Cli::parse();
@@ -60,7 +60,7 @@ fn main() -> anyhow::Result<()> {
             l1,
             chain_id,
             web3_rpc,
-        } => init(name, l1, chain_id, web3_rpc),
+        } => init(name, l1, chain_id, web3_rpc).await,
         Commands::Where { name } => {
             let dir = utils::hyperchain_dir(&name)?.to_string_lossy().to_string();
             println!("{}", dir);
@@ -135,7 +135,7 @@ fn init_base_dir() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn init(
+async fn init(
     name: String,
     l1_network: L1Network,
     chain_id: u64,
@@ -143,11 +143,10 @@ fn init(
 ) -> anyhow::Result<()> {
     let shell = Shell::new()?;
     check_prerequisites(&shell);
-
     init_base_dir()?;
 
-    // let hyperchain_dir = utils::hyperchain_dir(&name)?;
-    // shell.create_dir(&hyperchain_dir)?;
+    let init = Init::new(name, l1_network, chain_id, web3_rpc)?;
+    init.init().await?;
 
     Ok(())
 }

@@ -11,7 +11,7 @@ const STATE_FILE_NAME: &'static str = ".init_state.json";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct InitState {
-    todo: String,
+    db_name: Option<String>,
 }
 
 pub struct Init {
@@ -49,5 +49,27 @@ impl Init {
             base_dir,
             hyperchain_dir,
         })
+    }
+
+    pub async fn init(self) -> anyhow::Result<()> {
+        Ok(())
+    }
+
+    fn load_state(&self) -> anyhow::Result<InitState> {
+        let contents = self
+            .shell
+            .read_file(self.hyperchain_dir.join(STATE_FILE_NAME))?;
+        Ok(serde_json::from_str(&contents)?)
+    }
+
+    fn save_state(&self, state: InitState) -> anyhow::Result<()> {
+        let contents = serde_json::to_string_pretty(&state)?;
+        self.shell
+            .write_file(self.hyperchain_dir.join(STATE_FILE_NAME), contents)?;
+        Ok(())
+    }
+
+    fn migrate_db(&self) -> anyhow::Result<()> {
+        todo!()
     }
 }
