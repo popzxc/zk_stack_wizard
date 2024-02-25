@@ -69,8 +69,7 @@ async fn main() -> anyhow::Result<()> {
     }
 }
 
-fn init_base_dir() -> anyhow::Result<()> {
-    let shell = Shell::new()?;
+fn init_base_dir(shell: &Shell) -> anyhow::Result<()> {
     let base_dir = utils::base_dir()?;
     if shell.path_exists(base_dir.join(".ok")) {
         return Ok(());
@@ -135,6 +134,13 @@ fn init_base_dir() -> anyhow::Result<()> {
     Ok(())
 }
 
+fn start_containers(shell: &Shell) -> anyhow::Result<()> {
+    let base_dir = utils::base_dir()?;
+    shell.change_dir(base_dir);
+    cmd!(shell, "docker-compose up -d geth postgres").run()?;
+    Ok(())
+}
+
 async fn init(
     name: String,
     l1_network: L1Network,
@@ -143,7 +149,8 @@ async fn init(
 ) -> anyhow::Result<()> {
     let shell = Shell::new()?;
     check_prerequisites(&shell);
-    init_base_dir()?;
+    init_base_dir(&shell)?;
+    start_containers(&shell)?;
 
     let init = Init::new(name, l1_network, chain_id, web3_rpc)?;
     init.init().await?;
