@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use xshell::{cmd, Shell};
 
 mod consts;
+mod contracts;
 mod deploy;
 mod init;
 mod prerequisites;
