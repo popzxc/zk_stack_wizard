@@ -1,6 +1,7 @@
 use xshell::{cmd, Shell};
 
 pub(super) fn check_prerequisites(shell: &Shell) {
+    prerequisite(shell, "git");
     prerequisite(shell, "docker");
     prerequisite(shell, "docker-compose");
 }

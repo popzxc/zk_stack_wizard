@@ -131,7 +131,7 @@ fn init_base_dir(shell: &Shell) -> anyhow::Result<()> {
     shell.write_file(base_dir.join("docker-compose.yaml"), DOCKER_COMPOSE_FILE)?;
 
     // Mark the workspace as initialized.
-    shell.write_file(base_dir.join(".ok"), b"")?;
+    shell.write_file(base_dir.join(".ok"), "v0.0.1")?;
     Ok(())
 }
 
