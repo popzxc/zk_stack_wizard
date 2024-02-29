@@ -1,5 +1,7 @@
+use std::time::Duration;
+
 use web3::{
-    contract::Contract,
+    contract::{tokens::Tokenize, Contract},
     ethabi::{self, Address},
     signing::{Key, SecretKey, SecretKeyRef},
     transports::Http,
@@ -22,16 +24,35 @@ pub fn address(pk: H256) -> Address {
 }
 
 #[derive(Debug)]
-pub struct Deployer {
+pub struct Web3Client {
+    url: String,
     web3_client: Web3<Http>,
 }
 
-impl Deployer {
+impl Web3Client {
     pub fn new(web3_url: &str) -> anyhow::Result<Self> {
         let transport = Http::new(web3_url)?;
         Ok(Self {
+            url: web3_url.to_string(),
             web3_client: Web3::new(transport),
         })
+    }
+
+    /// Tries to wait until corresponding Web3 is up and running.
+    pub async fn wait_until_up(&self) -> anyhow::Result<()> {
+        // 100 retries with 200ms frequency give us 20 seconds to wait.
+        for _ in 0..100 {
+            if self.chain_id().await.is_ok() {
+                return Ok(());
+            }
+            tokio::time::sleep(Duration::from_millis(200)).await;
+        }
+        anyhow::bail!("Web3 RPC with URL {} does not respond", self.url);
+    }
+
+    pub async fn chain_id(&self) -> anyhow::Result<U256> {
+        let id = self.web3_client.eth().chain_id().await?;
+        Ok(id)
     }
 
     pub async fn balance_of(&self, address: Address) -> anyhow::Result<U256> {
@@ -39,12 +60,12 @@ impl Deployer {
         Ok(balance)
     }
 
-    pub async fn deploy(
+    pub async fn deploy<P: Tokenize>(
         &self,
         pk: H256,
         json: &[u8],
         bytecode: String,
-        constructor_args: Vec<ethabi::Token>,
+        constructor_args: P,
     ) -> anyhow::Result<Contract<Http>> {
         let chain_id = None; // TODO should not be none.
         let pk = SecretKey::from_slice(pk.as_bytes()).unwrap();

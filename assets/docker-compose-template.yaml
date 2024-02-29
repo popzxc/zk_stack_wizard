@@ -3,7 +3,7 @@ networks:
   zkstack:
     driver: bridge
 services:
-  geth:
+  zkstack_geth:
     image: "matterlabs/geth:latest"
     ports:
       - "127.0.0.1:18545:8545"
@@ -15,7 +15,7 @@ services:
     networks:
       - zkstack
     container_name: zkstack_geth
-  postgres:
+  zkstack_postgres:
     image: "postgres:14"
     ports:
       - "127.0.0.1:15432:5432"

@@ -7,12 +7,14 @@ const COMMON_PREFIX_L1: &str = ".contracts/l1-contracts/artifacts/cache/solpp-ge
 
 #[derive(Debug)]
 pub struct ContractRepr {
-    pub abi: web3::ethabi::Contract,
+    // pub abi: web3::ethabi::Contract,
+    pub raw_abi: Vec<u8>,
     pub bytecode: String,
 }
 
 impl ContractRepr {
     pub fn new(file: String) -> anyhow::Result<Self> {
+        let raw_abi = file.as_bytes().to_vec();
         let value: serde_json::Value = serde_json::from_str(&file)?;
         let bytecode = value
             .get("bytecode")
@@ -20,8 +22,16 @@ impl ContractRepr {
             .as_str()
             .context("bytecode is not a string")?
             .to_string();
-        let abi: web3::ethabi::Contract = serde_json::from_value(value).context("Invalid ABI")?;
-        Ok(Self { bytecode, abi })
+        let abi_value = value.get("abi").context("no bytecode field")?;
+        let raw_abi = serde_json::to_string(abi_value).unwrap().into_bytes();
+        // let abi: web3::ethabi::Contract =
+        //     serde_json::from_value(value.get("abi").context("no abi field")?.clone())
+        //         .context("Invalid ABI")?;
+        Ok(Self {
+            bytecode,
+            // abi,
+            raw_abi,
+        })
     }
 }
 

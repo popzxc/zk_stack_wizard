@@ -9,12 +9,15 @@ use sqlx::{
     migrate::{Migrate, MigrateError, Migrator},
     Connection, PgConnection,
 };
-use web3::types::{H256, U256};
+use web3::{
+    ethabi::Address,
+    types::{H256, U256},
+};
 use xshell::Shell;
 
-use crate::{deploy::Deployer, L1Network};
+use crate::{web3_client::Web3Client, L1Network};
 
-const LOCALHOST_WEB3: &'static str = "http://127.0.0.1:18546";
+pub(super) const LOCALHOST_WEB3: &'static str = "http://127.0.0.1:18545";
 const BASE_DB_URL: &'static str = "postgres://postgres:notsecurepassword@127.0.0.1:15432";
 const STATE_FILE_NAME: &'static str = ".init_state.json";
 
@@ -190,7 +193,7 @@ impl Init {
         let applied_migrations = conn.list_applied_migrations().await?;
         // validate_applied_migrations(&applied_migrations, &migrator, ignore_missing)?;
 
-        let latest_version = applied_migrations
+        let _latest_version = applied_migrations
             .iter()
             .max_by(|x, y| x.version.cmp(&y.version))
             .and_then(|migration| Some(migration.version))
@@ -249,8 +252,8 @@ impl Init {
         if state.operator_wallet.is_some() && state.admin_wallet.is_some() {
             return Ok(());
         }
-        state.operator_wallet = Some(crate::deploy::gen_pk());
-        state.admin_wallet = Some(crate::deploy::gen_pk());
+        state.operator_wallet = Some(crate::web3_client::gen_pk());
+        state.admin_wallet = Some(crate::web3_client::gen_pk());
         self.save_state(state)?;
         Ok(())
     }
@@ -262,8 +265,8 @@ impl Init {
         }
 
         let admin_wallet =
-            crate::deploy::address(state.admin_wallet.expect("Must've been initialized"));
-        let deployer = Deployer::new(&self.web3_rpc)?;
+            crate::web3_client::address(state.admin_wallet.expect("Must've been initialized"));
+        let deployer = Web3Client::new(&self.web3_rpc)?;
         let balance = deployer.balance_of(admin_wallet).await?;
 
         let one_eth = U256::from(10).pow(18.into());
@@ -274,7 +277,7 @@ impl Init {
                     todo!("Fund from rich wallet");
                 }
                 L1Network::Sepolia => {
-                    todo!("Ask users to provide funds");
+                    prompt_eth_request(&deployer, self.l1_network, admin_wallet).await?;
                 }
             }
         }
@@ -283,5 +286,36 @@ impl Init {
 
         state.wallets_funded = true;
         Ok(())
+    }
+}
+
+async fn prompt_eth_request(
+    deployer: &Web3Client,
+    l1_network: L1Network,
+    address: Address,
+) -> anyhow::Result<()> {
+    let one_eth = U256::from(10).pow(18.into());
+    println!("Please provide at least one ETH to the following address on {l1_network}:");
+    println!("{address:?}");
+    println!("Once provided, hit enter");
+    println!("Enter 'q' or 'quit' if you want to quit. Do not worry, the progress made so far would be saved.");
+    loop {
+        let mut output = String::new();
+        std::io::stdin()
+            .read_line(&mut output)
+            .expect("We don't expect read from stdin to fail...");
+        if output == "q" || output == "quit" {
+            // Prolly not the best way to handle things.
+            std::process::exit(0);
+        }
+        // Assume that user provided funds.
+        let balance = deployer.balance_of(address).await?;
+        if balance >= one_eth {
+            // All good.
+            return Ok(());
+        }
+        let (eth, rest) = balance.div_mod(one_eth);
+        let rest = rest / U256::from(10).pow(15.into());
+        println!("The current balance is {eth}.{rest:03}... Please make sure that there is enough funds and hit enter again");
     }
 }
